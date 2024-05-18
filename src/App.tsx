@@ -1,36 +1,92 @@
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { useState } from "react";
+
+function Table({ columns, data }) {
+  const table = useReactTable({
+    columns,
+    data,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  console.log("this renders correctly ==> ", data);
+
+  return (
+    <table>
+      <thead>
+        {table.getHeaderGroups().map((headerGroup) => (
+          <tr key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <th key={header.id}>
+                {header.isPlaceholder
+                  ? undefined
+                  : flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+              </th>
+            ))}
+          </tr>
+        ))}
+      </thead>
+      <tbody>
+        {table.getRowModel().rows.map((row) => {
+          console.log({ row });
+          return (
+            <tr key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <td key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+const columnHelper = createColumnHelper<{ name: string; id: number }>();
 
 function App() {
-  const form = useForm({ defaultValues: { customerId: "", addressId: "" } });
+  const form = useForm({ defaultValues: { users: [] } });
+  const { append } = useFieldArray({ control: form.control, name: "users" });
+  const users = useWatch({ control: form.control, name: "users" });
+  const [name, setName] = useState("");
 
-  // This works without the react compiler enabled.
-  const customerId = form.watch("customerId");
-
-  // This line will render with a stale customerId
-  console.log("customerIdFromRender => ", customerId);
-
-  useEffect(() => {
-    const { unsubscribe } = form.watch((values, { name }) => {
-      if (name === "customerId") {
-        console.log("customerIdFromWatch => ", values[name]);
-      }
-    });
-    return unsubscribe;
-  }, [form]);
+  const columns = [
+    columnHelper.accessor("id", {
+      header: "ID",
+      cell: (info) => <div>{info.getValue()}</div>,
+    }),
+    columnHelper.accessor("name", {
+      header: "Name",
+      cell: (info) => <div>{info.getValue()}</div>,
+    }),
+  ];
 
   return (
     <main>
-      <label htmlFor="customerId">Customer ID</label>
-      <input type="text" id="customerId" {...form.register("customerId")} />
-
-      {/* Never shown because customerId always remains an empty string */}
-      {customerId && (
-        <fieldset>
-          <label htmlFor="addressId">Address ID</label>
-          <input type="text" id="addressId" {...form.register("addressId")} />
-        </fieldset>
-      )}
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+      />
+      <button
+        onClick={() => {
+          setName("");
+          return append({ name, id: Math.random() * 1000 });
+        }}
+      >
+        Add
+      </button>
+      <Table columns={columns} data={users} />
     </main>
   );
 }
